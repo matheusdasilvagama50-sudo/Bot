@@ -1,0 +1,2110 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local PromptService = game:GetService("ProximityPromptService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local PlaceId = game.PlaceId
+
+if not _G.HzsServerBlacklist then
+	_G.HzsServerBlacklist = {}
+end
+if not _G.HzsBlacklist then
+	_G.HzsBlacklist = _G.HzsServerBlacklist
+end
+_G.HzsServerBlacklist = _G.HzsBlacklist
+_G.HzsBlacklist[game.JobId] = true
+
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+
+local GuiParent
+
+pcall(function()
+	GuiParent = gethui()
+end)
+
+if not GuiParent then
+	pcall(function()
+		GuiParent = game:GetService("CoreGui")
+	end)
+end
+
+if not GuiParent then
+	GuiParent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local DISCORD_LINK = "https://discord.gg/FJyd95YUvz"
+
+local GITHUB_WHITELIST_URL = "https://api.rubis.app/v2/scrap/BVYosnMkyB2aSW0C/raw"
+
+local Whitelist = {}
+
+local success, response = pcall(function()
+	return game:HttpGet(GITHUB_WHITELIST_URL)
+end)
+
+if success and response then
+	for line in response:gmatch("[^\r\n]+") do
+		local cleanName = line:match("^%s*(.-)%s*$")
+		if cleanName and cleanName ~= "" then
+			table.insert(Whitelist, cleanName)
+		end
+	end
+else
+	warn("[Limão Hub] Erro ao carregar a whitelist do GitHub!")
+end
+
+local PlayerName = LocalPlayer.Name
+local IsAuthorized = false
+
+for _, AllowedName in ipairs(Whitelist) do
+	if AllowedName:lower() == PlayerName:lower() then
+		IsAuthorized = true
+		break
+	end
+end
+
+if not IsAuthorized then
+	local KickMessage = '"' .. PlayerName .. '" Não É Autorizado Ao Limão Hub Premium'
+	LocalPlayer:Kick(KickMessage)
+	return
+end
+
+local LoadingGui = Instance.new("ScreenGui")
+LoadingGui.Name = "LimaoHubLoading"
+LoadingGui.ResetOnSpawn = false
+LoadingGui.IgnoreGuiInset = true
+LoadingGui.DisplayOrder = 999
+LoadingGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+LoadingGui.Parent = GuiParent
+
+local Background = Instance.new("Frame")
+Background.Name = "Background"
+Background.Size = UDim2.new(1, 0, 1, 0)
+Background.Position = UDim2.new(0, 0, 0, 0)
+Background.BackgroundColor3 = Color3.fromRGB(6, 14, 10)
+Background.BackgroundTransparency = 0
+Background.ZIndex = 1
+Background.Parent = LoadingGui
+
+local DarkOverlay = Instance.new("Frame")
+DarkOverlay.Size = UDim2.new(1, 0, 1, 0)
+DarkOverlay.BackgroundColor3 = Color3.fromRGB(4, 10, 7)
+DarkOverlay.BackgroundTransparency = 0.45
+DarkOverlay.BorderSizePixel = 0
+DarkOverlay.ZIndex = 2
+DarkOverlay.Parent = LoadingGui
+
+local LoadingContainer = Instance.new("Frame")
+LoadingContainer.Name = "LoadingContainer"
+LoadingContainer.Size = UDim2.new(0, 360, 0, 270)
+LoadingContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingContainer.Position = UDim2.fromScale(0.5, 0.5)
+LoadingContainer.BackgroundColor3 = Color3.fromRGB(9, 19, 13)
+LoadingContainer.BackgroundTransparency = 0.12
+LoadingContainer.BorderSizePixel = 0
+LoadingContainer.ZIndex = 3
+LoadingContainer.Parent = LoadingGui
+
+local LoadingContainerCorner = Instance.new("UICorner")
+LoadingContainerCorner.CornerRadius = UDim.new(0, 20)
+LoadingContainerCorner.Parent = LoadingContainer
+
+local LoadingContainerStroke = Instance.new("UIStroke")
+LoadingContainerStroke.Color = Color3.fromRGB(57, 255, 20)
+LoadingContainerStroke.Thickness = 1.4
+LoadingContainerStroke.Transparency = 0.05
+LoadingContainerStroke.Parent = LoadingContainer
+
+local LoadingScale = Instance.new("UIScale")
+LoadingScale.Scale = 1
+LoadingScale.Parent = LoadingContainer
+
+local function UpdateLoadingScale()
+	local viewport = Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+	local scale = math.min(1, math.max(0.72, math.min((viewport.X - 24) / 360, (viewport.Y - 80) / 270)))
+	LoadingScale.Scale = scale
+end
+
+UpdateLoadingScale()
+if Workspace.CurrentCamera then
+	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateLoadingScale)
+end
+
+local LoadingTitle = Instance.new("TextLabel")
+LoadingTitle.Name = "LoadingTitle"
+LoadingTitle.Size = UDim2.new(1, 0, 0, 36)
+LoadingTitle.Position = UDim2.new(0, 0, 0, 16)
+LoadingTitle.BackgroundTransparency = 1
+LoadingTitle.Text = ""
+LoadingTitle.TextColor3 = Color3.fromRGB(57, 255, 20)
+LoadingTitle.Font = Enum.Font.GothamBold
+LoadingTitle.TextSize = 22
+LoadingTitle.ZIndex = 4
+LoadingTitle.Parent = LoadingContainer
+
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(57, 255, 20)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(160, 255, 140)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(57, 255, 20)),
+})
+TitleGradient.Parent = LoadingTitle
+
+local LoadingSubTitle = Instance.new("TextLabel")
+LoadingSubTitle.Size = UDim2.new(1, 0, 0, 18)
+LoadingSubTitle.Position = UDim2.new(0, 0, 0, 50)
+LoadingSubTitle.BackgroundTransparency = 1
+LoadingSubTitle.Text = "PREMIUM"
+LoadingSubTitle.TextColor3 = Color3.fromRGB(255, 210, 70)
+LoadingSubTitle.Font = Enum.Font.GothamBold
+LoadingSubTitle.TextSize = 10
+LoadingSubTitle.ZIndex = 4
+LoadingSubTitle.Parent = LoadingContainer
+
+local TitleLine = Instance.new("Frame")
+TitleLine.Size = UDim2.new(0.6, 0, 0, 1)
+TitleLine.Position = UDim2.new(0.2, 0, 0, 74)
+TitleLine.BackgroundColor3 = Color3.fromRGB(57, 255, 20)
+TitleLine.BackgroundTransparency = 0.5
+TitleLine.BorderSizePixel = 0
+TitleLine.ZIndex = 4
+TitleLine.Parent = LoadingContainer
+
+local SpinnerFrame = Instance.new("Frame")
+SpinnerFrame.Name = "SpinnerFrame"
+SpinnerFrame.Size = UDim2.new(0, 82, 0, 82)
+SpinnerFrame.Position = UDim2.new(0.5, -41, 0, 88)
+SpinnerFrame.BackgroundTransparency = 1
+SpinnerFrame.ZIndex = 4
+SpinnerFrame.Parent = LoadingContainer
+
+local SpinnerBG = Instance.new("Frame")
+SpinnerBG.Size = UDim2.new(1, 0, 1, 0)
+SpinnerBG.BackgroundColor3 = Color3.fromRGB(16, 30, 20)
+SpinnerBG.BorderSizePixel = 0
+SpinnerBG.ZIndex = 4
+SpinnerBG.Parent = SpinnerFrame
+
+local SpinnerBGCorner = Instance.new("UICorner")
+SpinnerBGCorner.CornerRadius = UDim.new(1, 0)
+SpinnerBGCorner.Parent = SpinnerBG
+
+local SpinnerBGStroke = Instance.new("UIStroke")
+SpinnerBGStroke.Color = Color3.fromRGB(57, 255, 20)
+SpinnerBGStroke.Thickness = 3
+SpinnerBGStroke.Transparency = 0.5
+SpinnerBGStroke.Parent = SpinnerBG
+
+local SpinnerArc = Instance.new("ImageLabel")
+SpinnerArc.Name = "SpinnerArc"
+SpinnerArc.Size = UDim2.new(1, 0, 1, 0)
+SpinnerArc.BackgroundTransparency = 1
+SpinnerArc.Image = "rbxassetid://72657376103021"
+SpinnerArc.ImageColor3 = Color3.fromRGB(57, 255, 20)
+SpinnerArc.ZIndex = 6
+SpinnerArc.Parent = SpinnerFrame
+
+local SpinnerCenter = Instance.new("Frame")
+SpinnerCenter.Size = UDim2.new(0, 52, 0, 52)
+SpinnerCenter.Position = UDim2.new(0.5, -26, 0.5, -26)
+SpinnerCenter.BackgroundColor3 = Color3.fromRGB(11, 20, 14)
+SpinnerCenter.BorderSizePixel = 0
+SpinnerCenter.ZIndex = 5
+SpinnerCenter.Parent = SpinnerFrame
+
+local SpinnerCenterCorner = Instance.new("UICorner")
+SpinnerCenterCorner.CornerRadius = UDim.new(1, 0)
+SpinnerCenterCorner.Parent = SpinnerCenter
+
+local SpinnerCenterLabel = Instance.new("TextLabel")
+SpinnerCenterLabel.Size = UDim2.new(1, 0, 1, 0)
+SpinnerCenterLabel.BackgroundTransparency = 1
+SpinnerCenterLabel.Text = "LH"
+SpinnerCenterLabel.TextColor3 = Color3.fromRGB(57, 255, 20)
+SpinnerCenterLabel.Font = Enum.Font.GothamBold
+SpinnerCenterLabel.TextSize = 16
+SpinnerCenterLabel.ZIndex = 6
+SpinnerCenterLabel.Parent = SpinnerCenter
+
+local ProgressBG = Instance.new("Frame")
+ProgressBG.Name = "ProgressBG"
+ProgressBG.Size = UDim2.new(0.85, 0, 0, 8)
+ProgressBG.Position = UDim2.new(0.075, 0, 0, 188)
+ProgressBG.BackgroundColor3 = Color3.fromRGB(16, 30, 20)
+ProgressBG.BorderSizePixel = 0
+ProgressBG.ZIndex = 4
+ProgressBG.Parent = LoadingContainer
+
+local ProgressBGCorner = Instance.new("UICorner")
+ProgressBGCorner.CornerRadius = UDim.new(1, 0)
+ProgressBGCorner.Parent = ProgressBG
+
+local ProgressBar = Instance.new("Frame")
+ProgressBar.Name = "ProgressBar"
+ProgressBar.Size = UDim2.new(0, 0, 1, 0)
+ProgressBar.BackgroundColor3 = Color3.fromRGB(57, 255, 20)
+ProgressBar.BorderSizePixel = 0
+ProgressBar.ZIndex = 5
+ProgressBar.Parent = ProgressBG
+
+local ProgressBarCorner = Instance.new("UICorner")
+ProgressBarCorner.CornerRadius = UDim.new(1, 0)
+ProgressBarCorner.Parent = ProgressBar
+
+local ProgressBarGlow = Instance.new("UIGradient")
+ProgressBarGlow.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(57, 255, 20)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(160, 255, 140)),
+})
+ProgressBarGlow.Parent = ProgressBar
+
+local ProgressLabel = Instance.new("TextLabel")
+ProgressLabel.Name = "ProgressLabel"
+ProgressLabel.Size = UDim2.new(1, 0, 0, 18)
+ProgressLabel.Position = UDim2.new(0, 0, 0, 201)
+ProgressLabel.BackgroundTransparency = 1
+ProgressLabel.Text = "0%"
+ProgressLabel.TextColor3 = Color3.fromRGB(157, 180, 165)
+ProgressLabel.Font = Enum.Font.GothamBold
+ProgressLabel.TextSize = 11
+ProgressLabel.ZIndex = 4
+ProgressLabel.Parent = LoadingContainer
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Name = "StatusText"
+StatusText.Size = UDim2.new(1, 0, 0, 16)
+StatusText.Position = UDim2.new(0, 0, 0, 220)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "Inicializando..."
+StatusText.TextColor3 = Color3.fromRGB(100, 130, 110)
+StatusText.Font = Enum.Font.GothamMedium
+StatusText.TextSize = 9
+StatusText.ZIndex = 4
+StatusText.Parent = LoadingContainer
+
+local FooterBG = Instance.new("Frame")
+FooterBG.Size = UDim2.new(1, 0, 0, 36)
+FooterBG.Position = UDim2.new(0, 0, 1, -36)
+FooterBG.BackgroundColor3 = Color3.fromRGB(7, 12, 9)
+FooterBG.BackgroundTransparency = 0.3
+FooterBG.BorderSizePixel = 0
+FooterBG.ZIndex = 3
+FooterBG.Parent = LoadingGui
+
+local FooterLabel = Instance.new("TextLabel")
+FooterLabel.Name = "FooterLabel"
+FooterLabel.Size = UDim2.new(1, 0, 1, 0)
+FooterLabel.BackgroundTransparency = 1
+FooterLabel.Text = ""
+FooterLabel.TextColor3 = Color3.fromRGB(57, 255, 20)
+FooterLabel.Font = Enum.Font.GothamMedium
+FooterLabel.TextSize = 12
+FooterLabel.ZIndex = 4
+FooterLabel.Parent = FooterBG
+
+local SpinnerAngle = 0
+local SpinnerRunning = true
+local SpinnerConnection = {
+	Disconnect = function() SpinnerRunning = false end
+}
+task.spawn(function()
+	local lastTick = os.clock()
+	while SpinnerRunning do
+		local now = os.clock()
+		local dt = now - lastTick
+		lastTick = now
+		SpinnerAngle = SpinnerAngle + dt * 220
+		if SpinnerAngle >= 360 then SpinnerAngle = SpinnerAngle - 360 end
+		SpinnerArc.Rotation = SpinnerAngle
+		task.wait(0.016)
+	end
+end)
+
+local function TypeWrite(label, text, speed)
+	label.Text = ""
+	for i = 1, #text do
+		label.Text = text:sub(1, i) .. "|"
+		task.wait(speed or 0.04)
+	end
+	label.Text = text
+end
+
+task.spawn(function()
+	local TitleFull = "Limão Hub | Anti-Hit Loading"
+	LoadingTitle.Text = ""
+	for i = 1, #TitleFull do
+		LoadingTitle.Text = TitleFull:sub(1, i)
+		task.wait(0.04)
+	end
+end)
+
+local LoadingFinished = false
+
+local function SetGuiFade(Root, Alpha)
+	Alpha = math.clamp(Alpha, 0, 1)
+
+	local Objects = { Root }
+	for _, Object in ipairs(Root:GetDescendants()) do
+		table.insert(Objects, Object)
+	end
+
+	for _, Object in ipairs(Objects) do
+		if Object:IsA("TextLabel") or Object:IsA("TextButton") or Object:IsA("TextBox") then
+			Object.TextTransparency = math.max(Object.TextTransparency, Alpha)
+			Object.TextStrokeTransparency = math.max(Object.TextStrokeTransparency, Alpha)
+		end
+
+		if Object:IsA("ImageLabel") or Object:IsA("ImageButton") then
+			Object.ImageTransparency = math.max(Object.ImageTransparency, Alpha)
+		end
+
+		if Object:IsA("GuiObject") then
+			Object.BackgroundTransparency = math.max(Object.BackgroundTransparency, Alpha)
+		end
+
+		if Object:IsA("UIStroke") then
+			Object.Transparency = math.max(Object.Transparency, Alpha)
+		end
+	end
+end
+
+local LoadingStages = {
+	{ percent = 15,  text = "Verificando whitelist..." },
+	{ percent = 30,  text = "Carregando módulos..." },
+	{ percent = 48,  text = "Iniciando Anti-Hit..." },
+	{ percent = 65,  text = "Configurando proteção..." },
+	{ percent = 80,  text = "Aplicando patches..." },
+	{ percent = 92,  text = "Finalizando..." },
+	{ percent = 100, text = "Pronto!" },
+}
+
+task.spawn(function()
+	task.wait(0.8)
+
+	for _, Stage in ipairs(LoadingStages) do
+		StatusText.Text = Stage.text
+
+		local CurrentScale = ProgressBar.Size.X.Scale
+		local TargetScale = Stage.percent / 100
+		local Steps = 20
+		local StepSize = (TargetScale - CurrentScale) / Steps
+
+		for _ = 1, Steps do
+			local NewScale = ProgressBar.Size.X.Scale + StepSize
+			ProgressBar.Size = UDim2.new(math.clamp(NewScale, 0, 1), 0, 1, 0)
+			ProgressLabel.Text = math.floor(ProgressBar.Size.X.Scale * 100) .. "%"
+			task.wait(0.025)
+		end
+
+		ProgressBar.Size = UDim2.new(TargetScale, 0, 1, 0)
+		ProgressLabel.Text = Stage.percent .. "%"
+
+		task.wait(0.18)
+	end
+
+	task.wait(0.2)
+	TypeWrite(FooterLabel, "Made By Ryan", 0.04)
+
+	task.wait(0.7)
+
+	SpinnerConnection:Disconnect()
+
+	local FadeSteps = 25
+	for i = 1, FadeSteps do
+		local Alpha = i / FadeSteps
+		Background.BackgroundTransparency = Alpha
+		DarkOverlay.BackgroundTransparency = 0.45 + (0.55 * Alpha)
+		SetGuiFade(LoadingContainer, Alpha)
+		FooterBG.BackgroundTransparency = 0.3 + (0.7 * Alpha)
+		FooterLabel.TextTransparency = Alpha
+		task.wait(0.03)
+	end
+
+	if LoadingGui and LoadingGui.Parent then
+		LoadingGui:Destroy()
+	end
+	LoadingFinished = true
+end)
+
+repeat task.wait(0.05) until LoadingFinished
+
+local function CopyToClipboard(text)
+	if setclipboard then
+		setclipboard(text)
+	elseif toclipboard then
+		toclipboard(text)
+	end
+end
+
+local TARGET_POS = Vector3.new(491, 70, -371)
+
+local AntiHitEnabled = false
+local PromptConnection = nil
+local SavedHoldDurations = {}
+local ActiveConnections = {}
+local AntiHitRunning = false
+local CharacterDetectionConnection = nil
+
+local function CreateFakeAndTeleportReal()
+	local Character = LocalPlayer.Character
+	if not Character then
+		return
+	end
+
+	local RootPart = Character:FindFirstChild("HumanoidRootPart")
+	local RealHumanoid = Character:FindFirstChildOfClass("Humanoid")
+	if not RootPart or not RealHumanoid then
+		return
+	end
+
+	local OriginalCFrame = RootPart.CFrame
+	Character.Archivable = true
+
+	local CloneOk, FakeCharacter = pcall(function()
+		return Character:Clone()
+	end)
+
+	Character.Archivable = false
+	if not CloneOk or not FakeCharacter then
+		return
+	end
+
+	FakeCharacter.Name = "FakeVisualPlayer"
+
+	for _, Descendant in ipairs(FakeCharacter:GetDescendants()) do
+		if Descendant:IsA("BasePart") then
+			Descendant.CanCollide = false
+			Descendant.Anchored = true
+		elseif Descendant:IsA("Script") or Descendant:IsA("LocalScript") then
+			Descendant:Destroy()
+		end
+	end
+
+	FakeCharacter.Parent = Workspace
+	FakeCharacter:PivotTo(OriginalCFrame)
+
+	local CurrentCamera = Workspace.CurrentCamera
+	local FakeHumanoid = FakeCharacter:FindFirstChildOfClass("Humanoid")
+
+	if FakeHumanoid and CurrentCamera then
+		CurrentCamera.CameraSubject = FakeHumanoid
+	end
+
+	local TargetCFrame = CFrame.new(TARGET_POS + Vector3.new(0, 3, 0))
+	local StartTime = os.clock()
+	local HoldConnection
+
+	HoldConnection = RunService.Heartbeat:Connect(function()
+		if not AntiHitEnabled or not Character.Parent or not RootPart.Parent then
+			if HoldConnection then
+				HoldConnection:Disconnect()
+			end
+			return
+		end
+
+		RootPart.AssemblyLinearVelocity = Vector3.zero
+		RootPart.AssemblyAngularVelocity = Vector3.zero
+		RootPart.CFrame = TargetCFrame
+		Character:PivotTo(TargetCFrame)
+
+		if os.clock() - StartTime >= 0.6 then
+			HoldConnection:Disconnect()
+		end
+	end)
+
+	task.delay(0.6, function()
+		if HoldConnection then
+			pcall(function()
+				HoldConnection:Disconnect()
+			end)
+		end
+
+		if FakeCharacter and FakeCharacter.Parent then
+			FakeCharacter:Destroy()
+		end
+
+		if RealHumanoid and RealHumanoid.Parent and CurrentCamera then
+			CurrentCamera.CameraSubject = RealHumanoid
+		end
+	end)
+end
+
+local function TriggerAntiHit()
+	if AntiHitRunning or not AntiHitEnabled then
+		return
+	end
+
+	AntiHitRunning = true
+	task.wait(0.1)
+
+	local Character = LocalPlayer.Character
+	if Character then
+		for _, Item in ipairs(Character:GetChildren()) do
+			if Item:IsA("Tool") then
+				Item.Parent = Workspace
+			end
+		end
+
+		CreateFakeAndTeleportReal()
+	end
+
+	task.delay(0.8, function()
+		AntiHitRunning = false
+	end)
+end
+
+local function SetupCharacterDetection(Character)
+	if CharacterDetectionConnection then
+		CharacterDetectionConnection:Disconnect()
+		CharacterDetectionConnection = nil
+	end
+
+	if not Character then
+		return
+	end
+
+	CharacterDetectionConnection = Character.ChildAdded:Connect(function(Child)
+		if not AntiHitEnabled or Child:IsA("Tool") then
+			return
+		end
+
+		local Name = string.lower(Child.Name)
+		if string.find(Name, "egg") or string.find(Name, "telur") then
+			task.spawn(TriggerAntiHit)
+		end
+	end)
+end
+
+if LocalPlayer.Character then
+	SetupCharacterDetection(LocalPlayer.Character)
+end
+
+LocalPlayer.CharacterAdded:Connect(function(Character)
+	task.wait(0.1)
+	SetupCharacterDetection(Character)
+end)
+
+local function PatchPrompt(Prompt)
+	if not (
+		Prompt
+		and typeof(Prompt) == "Instance"
+		and Prompt:IsA("ProximityPrompt")
+	) then
+		return
+	end
+
+	if AntiHitEnabled then
+		if SavedHoldDurations[Prompt] == nil then
+			SavedHoldDurations[Prompt] = Prompt.HoldDuration
+		end
+
+		Prompt.HoldDuration = 0
+		Prompt.RequiresLineOfSight = false
+	elseif SavedHoldDurations[Prompt] ~= nil then
+		Prompt.HoldDuration = SavedHoldDurations[Prompt]
+		SavedHoldDurations[Prompt] = nil
+	end
+end
+
+local function SetPromptPatch(Enabled)
+	if Enabled then
+		for _, Item in ipairs(Workspace:GetDescendants()) do
+			PatchPrompt(Item)
+		end
+
+		table.insert(
+			ActiveConnections,
+			Workspace.DescendantAdded:Connect(function(Item)
+				PatchPrompt(Item)
+			end)
+		)
+
+		table.insert(
+			ActiveConnections,
+			PromptService.PromptShown:Connect(function(Prompt)
+				PatchPrompt(Prompt)
+			end)
+		)
+	else
+		for _, Connection in ipairs(ActiveConnections) do
+			if Connection then
+				Connection:Disconnect()
+			end
+		end
+
+		ActiveConnections = {}
+
+		for Prompt, Duration in pairs(SavedHoldDurations) do
+			if Prompt and Prompt.Parent then
+				Prompt.HoldDuration = Duration
+			end
+		end
+
+		SavedHoldDurations = {}
+	end
+end
+
+if GuiParent:FindFirstChild("LimaoHub") then
+	GuiParent.LimaoHub:Destroy()
+end
+
+local NEON_GREEN = Color3.fromRGB(57, 255, 20)
+local GREEN_LIGHT = Color3.fromRGB(145, 255, 120)
+local GREEN_DARK = Color3.fromRGB(30, 95, 35)
+
+local BACKGROUND = Color3.fromRGB(12, 18, 14)
+local CARD = Color3.fromRGB(19, 33, 23)
+
+local TEXT = Color3.fromRGB(245, 255, 247)
+local SUBTEXT = Color3.fromRGB(157, 180, 165)
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LimaoHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = GuiParent
+
+local DragContainer = Instance.new("Frame")
+DragContainer.Name = "DragContainer"
+DragContainer.Size = UDim2.new(0, 300, 0, 184)
+DragContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+DragContainer.Position = UDim2.fromScale(0.5, 0.5)
+DragContainer.BackgroundTransparency = 1
+DragContainer.BorderSizePixel = 0
+DragContainer.Active = true
+DragContainer.ZIndex = 1
+DragContainer.Parent = ScreenGui
+
+local ContainerScale = Instance.new("UIScale")
+ContainerScale.Scale = 1
+ContainerScale.Parent = DragContainer
+
+local IntroFinished = false
+local TargetUiScale = 1
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.fromScale(1, 1)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.Position = UDim2.fromScale(0.5, 0.5)
+MainFrame.BackgroundColor3 = BACKGROUND
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Active = true
+MainFrame.ZIndex = 2
+MainFrame.Parent = DragContainer
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 19)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = NEON_GREEN
+MainStroke.Thickness = 2.4
+MainStroke.Transparency = 0
+MainStroke.Parent = MainFrame
+
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Color = ColorSequence.new(
+	Color3.fromRGB(20, 35, 24),
+	Color3.fromRGB(10, 16, 12)
+)
+MainGradient.Rotation = 135
+MainGradient.Parent = MainFrame
+
+local GlowFrame = Instance.new("Frame")
+GlowFrame.Name = "GlowFrame"
+GlowFrame.Size = UDim2.new(1, 8, 1, 8)
+GlowFrame.Position = UDim2.new(0, -4, 0, -4)
+GlowFrame.BackgroundTransparency = 1
+GlowFrame.BorderSizePixel = 0
+GlowFrame.ZIndex = 1
+GlowFrame.Parent = DragContainer
+
+local GlowCorner = Instance.new("UICorner")
+GlowCorner.CornerRadius = UDim.new(0, 22)
+GlowCorner.Parent = GlowFrame
+
+local GlowStroke = Instance.new("UIStroke")
+GlowStroke.Color = NEON_GREEN
+GlowStroke.Thickness = 2
+GlowStroke.Transparency = 1
+GlowStroke.Parent = GlowFrame
+
+local GlowGradient = Instance.new("UIGradient")
+GlowGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, GREEN_DARK),
+	ColorSequenceKeypoint.new(0.5, GREEN_LIGHT),
+	ColorSequenceKeypoint.new(1, GREEN_DARK),
+})
+GlowGradient.Rotation = 0
+GlowGradient.Parent = GlowStroke
+
+TweenService:Create(
+	GlowStroke,
+	TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+	{Transparency = 1}
+):Play()
+
+task.spawn(function()
+	while ScreenGui.Parent do
+		TweenService:Create(
+			GlowGradient,
+			TweenInfo.new(2.8, Enum.EasingStyle.Linear),
+			{Rotation = GlowGradient.Rotation + 180}
+		):Play()
+		task.wait(2.8)
+	end
+end)
+
+local function UpdateScale()
+	local Viewport = Camera.ViewportSize
+
+	local Scale = 1
+
+	if Viewport.X <= 500 then
+		Scale = 0.72
+	elseif Viewport.X <= 650 then
+		Scale = 0.80
+	elseif Viewport.X <= 800 then
+		Scale = 0.88
+	elseif Viewport.X <= 1000 then
+		Scale = 0.94
+	end
+
+	TargetUiScale = Scale
+	if IntroFinished then
+		ContainerScale.Scale = TargetUiScale
+	end
+end
+
+UpdateScale()
+ContainerScale.Scale = TargetUiScale * 0.78
+DragContainer.Position = UDim2.new(0.5, 0, 0.5, 24)
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 67)
+Header.BackgroundTransparency = 1
+Header.Active = true
+Header.Parent = MainFrame
+
+local LogoHolder = Instance.new("Frame")
+LogoHolder.Size = UDim2.fromOffset(42, 42)
+LogoHolder.Position = UDim2.fromOffset(15, 12)
+LogoHolder.BackgroundColor3 = Color3.fromRGB(11, 20, 14)
+LogoHolder.BorderSizePixel = 0
+LogoHolder.Parent = Header
+
+Instance.new("UICorner", LogoHolder).CornerRadius = UDim.new(0, 12)
+
+local LogoStroke = Instance.new("UIStroke")
+LogoStroke.Color = NEON_GREEN
+LogoStroke.Thickness = 1
+LogoStroke.Transparency = 0
+LogoStroke.Parent = LogoHolder
+
+local HubIcon = Instance.new("ImageLabel")
+HubIcon.Name = "HubIcon"
+HubIcon.Size = UDim2.new(1, -8, 1, -8)
+HubIcon.Position = UDim2.fromOffset(4, 4)
+HubIcon.BackgroundTransparency = 1
+HubIcon.Image = "rbxassetid://78019535995686"
+HubIcon.ScaleType = Enum.ScaleType.Fit
+HubIcon.ZIndex = 12
+HubIcon.Parent = LogoHolder
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -100, 0, 20)
+Title.Position = UDim2.new(0, 50, 0, 9)
+Title.BackgroundTransparency = 1
+Title.RichText = true
+Title.Text = 'Limão <font color="rgb(57,255,20)">Hub</font>'
+Title.TextColor3 = TEXT
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Center
+Title.ZIndex = 4
+Title.Parent = Header
+
+local PremiumSubTitle = Instance.new("TextLabel")
+PremiumSubTitle.Size = UDim2.new(1, -100, 0, 14)
+PremiumSubTitle.Position = UDim2.new(0, 50, 0, 28)
+PremiumSubTitle.BackgroundTransparency = 1
+PremiumSubTitle.Text = "PREMIUM"
+PremiumSubTitle.TextColor3 = Color3.fromRGB(255, 210, 70)
+PremiumSubTitle.Font = Enum.Font.GothamBold
+PremiumSubTitle.TextSize = 7
+PremiumSubTitle.TextXAlignment = Enum.TextXAlignment.Center
+PremiumSubTitle.ZIndex = 4
+PremiumSubTitle.Parent = Header
+
+local DiscordButton = Instance.new("ImageButton")
+DiscordButton.Name = "DiscordButton"
+DiscordButton.Size = UDim2.new(0, 32, 0, 32)
+DiscordButton.Position = UDim2.new(1, -43, 0, 9)
+DiscordButton.BackgroundColor3 = Color3.fromRGB(24, 42, 28)
+DiscordButton.Image = "rbxassetid://93628638506572"
+DiscordButton.ImageColor3 = GREEN_LIGHT
+DiscordButton.ScaleType = Enum.ScaleType.Fit
+DiscordButton.AutoButtonColor = false
+DiscordButton.ZIndex = 4
+DiscordButton.Parent = Header
+
+local DiscordCorner = Instance.new("UICorner")
+DiscordCorner.CornerRadius = UDim.new(0, 9)
+DiscordCorner.Parent = DiscordButton
+
+local DiscordStroke = Instance.new("UIStroke")
+DiscordStroke.Color = NEON_GREEN
+DiscordStroke.Thickness = 1.3
+DiscordStroke.Transparency = 0
+DiscordStroke.Parent = DiscordButton
+
+DiscordButton.MouseButton1Click:Connect(function()
+	CopyToClipboard(DISCORD_LINK)
+end)
+
+DiscordButton.MouseEnter:Connect(function()
+	TweenService:Create(
+		DiscordButton,
+		TweenInfo.new(0.15),
+		{
+			BackgroundColor3 = Color3.fromRGB(32, 60, 38)
+		}
+	):Play()
+end)
+
+DiscordButton.MouseLeave:Connect(function()
+	TweenService:Create(
+		DiscordButton,
+		TweenInfo.new(0.15),
+		{
+			BackgroundColor3 = Color3.fromRGB(24, 42, 28)
+		}
+	):Play()
+end)
+
+local Divider = Instance.new("Frame")
+Divider.Name = "Divider"
+Divider.Size = UDim2.new(1, -26, 0, 1)
+Divider.Position = UDim2.new(0, 13, 0, 55)
+Divider.BackgroundColor3 = Color3.fromRGB(42, 68, 48)
+Divider.BorderSizePixel = 0
+Divider.ZIndex = 4
+Divider.Parent = MainFrame
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.new(1, -26, 0, 50)
+ToggleButton.Position = UDim2.new(0, 13, 0, 65)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(26, 48, 31)
+ToggleButton.Text = ""
+ToggleButton.AutoButtonColor = false
+ToggleButton.ZIndex = 4
+ToggleButton.Parent = MainFrame
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 11)
+ToggleCorner.Parent = ToggleButton
+
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color = GREEN_DARK
+ToggleStroke.Thickness = 1.5
+ToggleStroke.Transparency = 0
+ToggleStroke.Parent = ToggleButton
+
+local ToggleText = Instance.new("TextLabel")
+ToggleText.Size = UDim2.new(1, -78, 0, 18)
+ToggleText.Position = UDim2.new(0, 12, 0, 7)
+ToggleText.BackgroundTransparency = 1
+ToggleText.RichText = true
+ToggleText.Text = 'Enable <font color="rgb(57,255,20)">Anti-Hit</font>'
+ToggleText.TextColor3 = TEXT
+ToggleText.Font = Enum.Font.GothamBold
+ToggleText.TextSize = 11
+ToggleText.TextXAlignment = Enum.TextXAlignment.Center
+ToggleText.ZIndex = 5
+ToggleText.Parent = ToggleButton
+
+local ToggleHint = Instance.new("TextLabel")
+ToggleHint.Size = UDim2.new(1, -78, 0, 14)
+ToggleHint.Position = UDim2.new(0, 12, 0, 27)
+ToggleHint.BackgroundTransparency = 1
+ToggleHint.RichText = true
+ToggleHint.Text = "Status: Disabled"
+ToggleHint.TextColor3 = SUBTEXT
+ToggleHint.Font = Enum.Font.GothamMedium
+ToggleHint.TextSize = 7
+ToggleHint.TextXAlignment = Enum.TextXAlignment.Center
+ToggleHint.ZIndex = 5
+ToggleHint.Parent = ToggleButton
+
+local Switch = Instance.new("Frame")
+Switch.Name = "Switch"
+Switch.Size = UDim2.new(0, 44, 0, 23)
+Switch.Position = UDim2.new(1, -57, 0.5, -11.5)
+Switch.BackgroundColor3 = Color3.fromRGB(37, 72, 44)
+Switch.BorderSizePixel = 0
+Switch.ZIndex = 5
+Switch.Parent = ToggleButton
+
+local SwitchCorner = Instance.new("UICorner")
+SwitchCorner.CornerRadius = UDim.new(1, 0)
+SwitchCorner.Parent = Switch
+
+local Knob = Instance.new("Frame")
+Knob.Name = "Knob"
+Knob.Size = UDim2.new(0, 17, 0, 17)
+Knob.Position = UDim2.new(0, 3, 0.5, -8.5)
+Knob.BackgroundColor3 = Color3.fromRGB(215, 255, 220)
+Knob.BorderSizePixel = 0
+Knob.ZIndex = 6
+Knob.Parent = Switch
+
+local KnobCorner = Instance.new("UICorner")
+KnobCorner.CornerRadius = UDim.new(1, 0)
+KnobCorner.Parent = Knob
+
+local ServerHopButton = Instance.new("TextButton")
+ServerHopButton.Name = "ServerHopButton"
+ServerHopButton.Size = UDim2.new(1, -26, 0, 48)
+ServerHopButton.Position = UDim2.new(0, 13, 0, 123)
+ServerHopButton.BackgroundColor3 = Color3.fromRGB(21, 38, 25)
+ServerHopButton.BorderSizePixel = 0
+ServerHopButton.Text = ""
+ServerHopButton.AutoButtonColor = false
+ServerHopButton.ZIndex = 4
+ServerHopButton.Parent = MainFrame
+
+local ServerHopCorner = Instance.new("UICorner")
+ServerHopCorner.CornerRadius = UDim.new(0, 11)
+ServerHopCorner.Parent = ServerHopButton
+
+local ServerHopStroke = Instance.new("UIStroke")
+ServerHopStroke.Color = GREEN_DARK
+ServerHopStroke.Thickness = 1.5
+ServerHopStroke.Transparency = 0
+ServerHopStroke.Parent = ServerHopButton
+
+local ServerHopTitle = Instance.new("TextLabel")
+ServerHopTitle.Size = UDim2.new(1, -24, 0, 18)
+ServerHopTitle.Position = UDim2.new(0, 12, 0, 7)
+ServerHopTitle.BackgroundTransparency = 1
+ServerHopTitle.RichText = true
+ServerHopTitle.Text = 'SERVER <font color="rgb(57,255,20)">FINDER</font>'
+ServerHopTitle.TextColor3 = TEXT
+ServerHopTitle.Font = Enum.Font.GothamBold
+ServerHopTitle.TextSize = 11
+ServerHopTitle.TextXAlignment = Enum.TextXAlignment.Center
+ServerHopTitle.ZIndex = 5
+ServerHopTitle.Parent = ServerHopButton
+
+local ServerHopStatus = Instance.new("TextLabel")
+ServerHopStatus.Size = UDim2.new(1, -24, 0, 14)
+ServerHopStatus.Position = UDim2.new(0, 12, 0, 26)
+ServerHopStatus.BackgroundTransparency = 1
+ServerHopStatus.RichText = true
+ServerHopStatus.Text = 'Status: <font color="rgb(57,255,20)">aguardando - prioridade 2 Player > 1 Player</font>'
+ServerHopStatus.TextColor3 = SUBTEXT
+ServerHopStatus.Font = Enum.Font.GothamMedium
+ServerHopStatus.TextSize = 7
+ServerHopStatus.TextXAlignment = Enum.TextXAlignment.Center
+ServerHopStatus.ZIndex = 5
+ServerHopStatus.Parent = ServerHopButton
+
+local ServerSearching = false
+local LastTeleportState = nil
+local ActiveHopLoadingGui = nil
+
+local function SetHopFeedback(titleText, statusText, titleColor, statusColor)
+	ServerHopTitle.Text = titleText
+	ServerHopStatus.Text = statusText
+	ServerHopTitle.TextColor3 = titleColor or TEXT
+	ServerHopStatus.TextColor3 = statusColor or SUBTEXT
+end
+
+local function ShowHopLoadingScreen(statusMessage)
+	if ActiveHopLoadingGui and ActiveHopLoadingGui.Parent then
+		local label = ActiveHopLoadingGui:FindFirstChild("HopStatusLabel", true)
+		if label then
+			label.Text = statusMessage
+		end
+		return
+	end
+
+	local HopGui = Instance.new("ScreenGui")
+	HopGui.Name = "LimaoHopLoadingGui"
+	HopGui.ResetOnSpawn = false
+	HopGui.IgnoreGuiInset = true
+	HopGui.DisplayOrder = 100000
+	HopGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	HopGui.Parent = GuiParent
+	ActiveHopLoadingGui = HopGui
+
+	local Overlay = Instance.new("Frame")
+	Overlay.Size = UDim2.new(1, 0, 1, 0)
+	Overlay.BackgroundColor3 = Color3.fromRGB(4, 10, 7)
+	Overlay.BackgroundTransparency = 0.25
+	Overlay.BorderSizePixel = 0
+	Overlay.ZIndex = 1
+	Overlay.Parent = HopGui
+
+	local Box = Instance.new("Frame")
+	Box.Size = UDim2.new(0, 300, 0, 140)
+	Box.AnchorPoint = Vector2.new(0.5, 0.5)
+	Box.Position = UDim2.fromScale(0.5, 0.5)
+	Box.BackgroundColor3 = Color3.fromRGB(9, 19, 13)
+	Box.BorderSizePixel = 0
+	Box.ZIndex = 2
+	Box.Parent = HopGui
+
+	local BoxCorner = Instance.new("UICorner")
+	BoxCorner.CornerRadius = UDim.new(0, 18)
+	BoxCorner.Parent = Box
+
+	local BoxStroke = Instance.new("UIStroke")
+	BoxStroke.Color = Color3.fromRGB(57, 255, 20)
+	BoxStroke.Thickness = 1.5
+	BoxStroke.Transparency = 0.05
+	BoxStroke.Parent = Box
+
+	local Spinner = Instance.new("ImageLabel")
+	Spinner.Size = UDim2.new(0, 42, 0, 42)
+	Spinner.Position = UDim2.new(0.5, -21, 0, 20)
+	Spinner.BackgroundTransparency = 1
+	Spinner.Image = "rbxassetid://72657376103021"
+	Spinner.ImageColor3 = Color3.fromRGB(57, 255, 20)
+	Spinner.ZIndex = 3
+	Spinner.Parent = Box
+
+	local TitleLbl = Instance.new("TextLabel")
+	TitleLbl.Size = UDim2.new(1, -20, 0, 20)
+	TitleLbl.Position = UDim2.new(0, 10, 0, 70)
+	TitleLbl.BackgroundTransparency = 1
+	TitleLbl.Text = "PROCURANDO SERVIDOR..."
+	TitleLbl.TextColor3 = Color3.fromRGB(57, 255, 20)
+	TitleLbl.Font = Enum.Font.GothamBold
+	TitleLbl.TextSize = 12
+	TitleLbl.ZIndex = 3
+	TitleLbl.Parent = Box
+
+	local StatusLbl = Instance.new("TextLabel")
+	StatusLbl.Name = "HopStatusLabel"
+	StatusLbl.Size = UDim2.new(1, -20, 0, 24)
+	StatusLbl.Position = UDim2.new(0, 10, 0, 94)
+	StatusLbl.BackgroundTransparency = 1
+	StatusLbl.Text = statusMessage or "Buscando servidor ideal..."
+	StatusLbl.TextColor3 = Color3.fromRGB(157, 180, 165)
+	StatusLbl.Font = Enum.Font.GothamMedium
+	StatusLbl.TextSize = 10
+	StatusLbl.ZIndex = 3
+	StatusLbl.Parent = Box
+
+	task.spawn(function()
+		local angle = 0
+		while HopGui and HopGui.Parent do
+			angle = angle + 10
+			if angle >= 360 then angle = angle - 360 end
+			Spinner.Rotation = angle
+			task.wait(0.016)
+		end
+	end)
+end
+
+local function HideHopLoadingScreen()
+	if ActiveHopLoadingGui and ActiveHopLoadingGui.Parent then
+		ActiveHopLoadingGui:Destroy()
+	end
+	ActiveHopLoadingGui = nil
+end
+
+LocalPlayer.OnTeleport:Connect(function(teleportState)
+	LastTeleportState = teleportState
+
+	if not ServerSearching then
+		return
+	end
+
+	if teleportState == Enum.TeleportState.Started then
+		ShowHopLoadingScreen("Conectando ao servidor...")
+		SetHopFeedback("SERVER HOP", "Status: iniciado - conectando...", GREEN_LIGHT, GREEN_LIGHT)
+	elseif teleportState == Enum.TeleportState.WaitingForServer then
+		ShowHopLoadingScreen("Aguardando servidor...")
+		SetHopFeedback("SERVER HOP", "Status: servidor encontrado - aguardando...", GREEN_LIGHT, GREEN_LIGHT)
+	elseif teleportState == Enum.TeleportState.InProgress then
+		ShowHopLoadingScreen("Entrando no servidor...")
+		SetHopFeedback("SERVER HOP OK", "Status: deu certo - entrando no servidor...", NEON_GREEN, GREEN_LIGHT)
+	elseif teleportState == Enum.TeleportState.Failed then
+		HideHopLoadingScreen()
+		SetHopFeedback("PROCURANDO OUTRO", "Status: teleporte falhou - procurando outro...", GREEN_LIGHT, GREEN_LIGHT)
+	end
+end)
+
+local function RequestAPI(options)
+	local req = request or http_request or (syn and syn.request) or (http and http.request) or (fluxus and fluxus.request)
+	if req then
+		local ok, response = pcall(req, options)
+		if ok then
+			return response
+		end
+	end
+
+	local okHttp, body = pcall(function()
+		return game:HttpGet(options.Url, true)
+	end)
+
+	if okHttp and type(body) == "string" and body ~= "" then
+		return {
+			Body = body,
+			StatusCode = 200
+		}
+	end
+
+	return nil
+end
+
+local function FindLowestTailServer()
+	local cursor = ""
+	local pages = {}
+
+	for page = 1, 8 do
+		local url = string.format(
+			"https://games.roblox.com/v1/games/%d/servers/0?sortOrder=Asc&limit=100",
+			PlaceId
+		)
+
+		if cursor ~= "" then
+			url = url .. "&cursor=" .. cursor
+		end
+
+		local res = RequestAPI({
+			Url = url,
+			Method = "GET"
+		})
+
+		if res and res.Body then
+			local okDecode, decoded = pcall(function()
+				return HttpService:JSONDecode(res.Body)
+			end)
+
+			if okDecode and decoded and decoded.data then
+				table.insert(pages, decoded.data)
+				cursor = decoded.nextPageCursor or ""
+				if cursor == "" then
+					break
+				end
+			else
+				break
+			end
+		else
+			break
+		end
+	end
+
+	for p = #pages, 1, -1 do
+		local currentList = pages[p]
+		for b = #currentList, 1, -1 do
+			local server = currentList[b]
+			local playing = server.playing or 0
+			local maxPlayers = server.maxPlayers or 0
+
+			if server.id
+				and not _G.HzsBlacklist[server.id]
+				and playing == 2
+				and (maxPlayers - playing) >= 2 then
+				return server.id, playing
+			end
+		end
+	end
+
+	for p = #pages, 1, -1 do
+		local currentList = pages[p]
+		for b = #currentList, 1, -1 do
+			local server = currentList[b]
+			local playing = server.playing or 0
+			local maxPlayers = server.maxPlayers or 0
+
+			if server.id
+				and not _G.HzsBlacklist[server.id]
+				and playing == 1
+				and (maxPlayers - playing) >= 2 then
+				return server.id, playing
+			end
+		end
+	end
+
+	return nil, nil
+end
+
+local function SetServerHopIdle()
+	ServerHopTitle.Text = 'SERVER <font color="rgb(57,255,20)">FINDER</font>'
+	ServerHopTitle.TextColor3 = TEXT
+	ServerHopStatus.Text = 'Status: <font color="rgb(57,255,20)">aguardando - prioridade 2 Player > 1 Player</font>'
+	ServerHopStatus.TextColor3 = SUBTEXT
+
+	TweenService:Create(ServerHopButton, TweenInfo.new(0.18, Enum.EasingStyle.Quart), {
+		BackgroundColor3 = Color3.fromRGB(21, 38, 25)
+	}):Play()
+
+	TweenService:Create(ServerHopStroke, TweenInfo.new(0.18), {
+		Color = GREEN_DARK
+	}):Play()
+end
+
+local function StartServerHop()
+	if ServerSearching then
+		ServerSearching = false
+		HideHopLoadingScreen()
+		SetServerHopIdle()
+		return
+	end
+
+	ServerSearching = true
+	LastTeleportState = nil
+	ShowHopLoadingScreen("Procurando servidor ideal...")
+
+	ServerHopTitle.Text = 'STOP <font color="rgb(57,255,20)">SEARCHING</font>'
+	ServerHopTitle.TextColor3 = GREEN_LIGHT
+	ServerHopStatus.Text = 'Status: <font color="rgb(57,255,20)">aguardando - prioridade 2 Player > 1 Player</font>'
+	ServerHopStatus.TextColor3 = GREEN_LIGHT
+
+	TweenService:Create(ServerHopButton, TweenInfo.new(0.18, Enum.EasingStyle.Quart), {
+		BackgroundColor3 = Color3.fromRGB(27, 68, 38)
+	}):Play()
+
+	TweenService:Create(ServerHopStroke, TweenInfo.new(0.18), {
+		Color = NEON_GREEN
+	}):Play()
+
+	task.spawn(function()
+		local attempt = 1
+
+		while ServerSearching do
+			SetHopFeedback(
+				'STOP <font color="rgb(57,255,20)">SEARCHING</font>',
+				string.format("Status: escaneando servidores... (#%d)", attempt),
+				GREEN_LIGHT,
+				GREEN_LIGHT
+			)
+
+			local foundJobId, playerCount = FindLowestTailServer()
+
+			if foundJobId then
+				_G.HzsBlacklist[foundJobId] = true
+				_G.HzsServerBlacklist[foundJobId] = true
+				LastTeleportState = nil
+
+				SetHopFeedback(
+					"JOINING...",
+					string.format("Status: %dP encontrado - entrando...", playerCount or 0),
+					NEON_GREEN,
+					GREEN_LIGHT
+				)
+
+				ShowHopLoadingScreen(string.format("Servidor com %d jogador(es) encontrado!", playerCount or 0))
+				task.wait(0.05)
+
+				local failed = false
+				local failConn
+				failConn = TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
+					if player ~= LocalPlayer then
+						return
+					end
+
+					failed = true
+					_G.HzsBlacklist[foundJobId] = true
+					_G.HzsServerBlacklist[foundJobId] = true
+
+					if failConn then
+						failConn:Disconnect()
+						failConn = nil
+					end
+
+					HideHopLoadingScreen()
+
+					local reason = teleportResult and teleportResult.Name or "Unknown"
+					if errorMessage and tostring(errorMessage) ~= "" then
+						reason = reason .. ": " .. tostring(errorMessage)
+					end
+
+					if ServerSearching then
+						if teleportResult == Enum.TeleportResult.GameFull
+							or string.find(string.lower(reason), "full", 1, true) then
+							SetHopFeedback(
+								"PROCURANDO OUTRO",
+								"Status: server lotou - procurando outro...",
+								GREEN_LIGHT,
+								GREEN_LIGHT
+							)
+						else
+							SetHopFeedback(
+								"SERVER HOP FALHOU",
+								"Status: " .. reason .. " - tentando novamente...",
+								Color3.fromRGB(57, 255, 20),
+								Color3.fromRGB(145, 255, 120)
+							)
+						end
+					end
+				end)
+
+				local teleportOk, teleportError = pcall(function()
+					TeleportService:TeleportToPlaceInstance(PlaceId, foundJobId, LocalPlayer)
+				end)
+
+				if not teleportOk then
+					failed = true
+					HideHopLoadingScreen()
+					if failConn then
+						failConn:Disconnect()
+						failConn = nil
+					end
+					SetHopFeedback(
+						'SERVER <font color="rgb(57,255,20)">HOP FALHOU</font>',
+						"Status: falhou ao iniciar - " .. tostring(teleportError),
+						Color3.fromRGB(57, 255, 20),
+						Color3.fromRGB(145, 255, 120)
+					)
+				else
+					local waitStarted = os.clock()
+					while ServerSearching and not failed and os.clock() - waitStarted < 5 do
+						if LastTeleportState == Enum.TeleportState.Started
+							or LastTeleportState == Enum.TeleportState.WaitingForServer
+							or LastTeleportState == Enum.TeleportState.InProgress then
+							break
+						end
+						task.wait(0.1)
+					end
+
+					if not failed
+						and LastTeleportState ~= Enum.TeleportState.Started
+						and LastTeleportState ~= Enum.TeleportState.WaitingForServer
+						and LastTeleportState ~= Enum.TeleportState.InProgress then
+						HideHopLoadingScreen()
+						SetHopFeedback(
+							"SERVER HOP FALHOU",
+							"Status: teleporte não iniciou - tentando outro...",
+							Color3.fromRGB(57, 255, 20),
+							Color3.fromRGB(145, 255, 120)
+						)
+					end
+				end
+
+				if failConn then
+					failConn:Disconnect()
+					failConn = nil
+				end
+
+				if ServerSearching and failed then
+					task.wait(0.5)
+				end
+			else
+				SetHopFeedback(
+					"STOP SEARCHING",
+					string.format("Status: nenhum servidor ideal - retry #%d", attempt),
+					GREEN_LIGHT,
+					SUBTEXT
+				)
+				task.wait(0.3)
+			end
+
+			if ServerSearching then
+				attempt += 1
+				task.wait(0.1)
+			end
+		end
+
+		HideHopLoadingScreen()
+		SetServerHopIdle()
+	end)
+end
+
+ServerHopButton.MouseButton1Click:Connect(StartServerHop)
+
+ServerHopButton.MouseEnter:Connect(function()
+	if not ServerSearching then
+		TweenService:Create(ServerHopButton, TweenInfo.new(0.15, Enum.EasingStyle.Quart), {
+			BackgroundColor3 = Color3.fromRGB(24, 44, 29)
+		}):Play()
+	end
+end)
+
+ServerHopButton.MouseLeave:Connect(function()
+	if not ServerSearching then
+		TweenService:Create(ServerHopButton, TweenInfo.new(0.15, Enum.EasingStyle.Quart), {
+			BackgroundColor3 = Color3.fromRGB(21, 38, 25)
+		}):Play()
+	end
+end)
+
+local TogglePressScale = Instance.new("UIScale")
+TogglePressScale.Scale = 1
+TogglePressScale.Parent = ToggleButton
+
+local ServerPressScale = Instance.new("UIScale")
+ServerPressScale.Scale = 1
+ServerPressScale.Parent = ServerHopButton
+
+local function AnimatePress(ScaleObject)
+	TweenService:Create(
+		ScaleObject,
+		TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{Scale = 0.975}
+	):Play()
+
+	task.delay(0.075, function()
+		if ScaleObject and ScaleObject.Parent then
+			TweenService:Create(
+				ScaleObject,
+				TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+				{Scale = 1}
+			):Play()
+		end
+	end)
+end
+
+ToggleButton.MouseButton1Down:Connect(function()
+	AnimatePress(TogglePressScale)
+end)
+
+ServerHopButton.MouseButton1Down:Connect(function()
+	AnimatePress(ServerPressScale)
+end)
+
+local function UpdateToggleStyle(On)
+	if On then
+		ToggleText.Text = 'ANTI HIT <font color="rgb(57,255,20)">ENABLED</font>'
+		ToggleHint.Text = 'Status: <font color="rgb(57,255,20)">Enabled</font>'
+		ToggleHint.TextColor3 = GREEN_LIGHT
+
+		TweenService:Create(
+			ToggleButton,
+			TweenInfo.new(0.22, Enum.EasingStyle.Quart),
+			{BackgroundColor3 = Color3.fromRGB(31, 77, 41)}
+		):Play()
+
+		TweenService:Create(
+			ToggleStroke,
+			TweenInfo.new(0.22),
+			{Color = NEON_GREEN, Transparency = 0}
+		):Play()
+
+		TweenService:Create(
+			Switch,
+			TweenInfo.new(0.22, Enum.EasingStyle.Quart),
+			{BackgroundColor3 = GREEN_DARK}
+		):Play()
+
+		TweenService:Create(
+			Knob,
+			TweenInfo.new(0.22, Enum.EasingStyle.Quart),
+			{Position = UDim2.new(1, -20, 0.5, -8.5)}
+		):Play()
+	else
+		ToggleText.Text = 'ENABLE <font color="rgb(57,255,20)">ANTI HIT</font>'
+		ToggleHint.Text = 'Status: <font color="rgb(57,255,20)">Disabled</font>'
+		ToggleHint.TextColor3 = SUBTEXT
+
+		TweenService:Create(
+			ToggleButton,
+			TweenInfo.new(0.22, Enum.EasingStyle.Quart),
+			{BackgroundColor3 = Color3.fromRGB(26, 48, 31)}
+		):Play()
+
+		TweenService:Create(
+			ToggleStroke,
+			TweenInfo.new(0.22),
+			{Color = GREEN_DARK, Transparency = 0}
+		):Play()
+
+		TweenService:Create(
+			Switch,
+			TweenInfo.new(0.22, Enum.EasingStyle.Quart),
+			{BackgroundColor3 = Color3.fromRGB(37, 72, 44)}
+		):Play()
+
+		TweenService:Create(
+			Knob,
+			TweenInfo.new(0.22, Enum.EasingStyle.Quart),
+			{Position = UDim2.new(0, 3, 0.5, -8.5)}
+		):Play()
+	end
+end
+
+local function ShowToggleLoading(enabling, callback)
+	local ToggleLoadGui = Instance.new("ScreenGui")
+	ToggleLoadGui.Name = "LimaoToggleLoading"
+	ToggleLoadGui.ResetOnSpawn = false
+	ToggleLoadGui.IgnoreGuiInset = true
+	ToggleLoadGui.DisplayOrder = 998
+	ToggleLoadGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	ToggleLoadGui.Parent = GuiParent
+
+	local TLOverlay = Instance.new("Frame")
+	TLOverlay.Size = UDim2.new(1, 0, 1, 0)
+	TLOverlay.BackgroundColor3 = Color3.fromRGB(4, 10, 7)
+	TLOverlay.BackgroundTransparency = 0.35
+	TLOverlay.BorderSizePixel = 0
+	TLOverlay.ZIndex = 1
+	TLOverlay.Parent = ToggleLoadGui
+
+	local TLBox = Instance.new("Frame")
+	TLBox.Size = UDim2.new(0, 260, 0, 96)
+	TLBox.AnchorPoint = Vector2.new(0.5, 0.5)
+	TLBox.Position = UDim2.fromScale(0.5, 0.5)
+	TLBox.BackgroundColor3 = Color3.fromRGB(12, 18, 14)
+	TLBox.BorderSizePixel = 0
+	TLBox.ZIndex = 2
+	TLBox.Parent = ToggleLoadGui
+
+	local TLBoxCorner = Instance.new("UICorner")
+	TLBoxCorner.CornerRadius = UDim.new(0, 16)
+	TLBoxCorner.Parent = TLBox
+
+	local TLBoxStroke = Instance.new("UIStroke")
+	TLBoxStroke.Color = Color3.fromRGB(57, 255, 20)
+	TLBoxStroke.Thickness = 1.3
+	TLBoxStroke.Transparency = 0.04
+	TLBoxStroke.Parent = TLBox
+
+	local TLBoxGradient = Instance.new("UIGradient")
+	TLBoxGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(17, 40, 22)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(9, 19, 13)),
+	})
+	TLBoxGradient.Rotation = 135
+	TLBoxGradient.Parent = TLBox
+
+	local TLSpinner = Instance.new("ImageLabel")
+	TLSpinner.Size = UDim2.new(0, 30, 0, 30)
+	TLSpinner.Position = UDim2.new(0.5, -15, 0, 16)
+	TLSpinner.BackgroundTransparency = 1
+	TLSpinner.Image = "rbxassetid://72657376103021"
+	TLSpinner.ImageColor3 = Color3.fromRGB(57, 255, 20)
+	TLSpinner.ZIndex = 3
+	TLSpinner.Parent = TLBox
+
+	local TLLabel = Instance.new("TextLabel")
+	TLLabel.Size = UDim2.new(1, -20, 0, 20)
+	TLLabel.Position = UDim2.new(0, 10, 0, 57)
+	TLLabel.BackgroundTransparency = 1
+	TLLabel.Text = enabling and "Ativando proteção..." or "Desativando proteção..."
+	TLLabel.TextColor3 = Color3.fromRGB(57, 255, 20)
+	TLLabel.Font = Enum.Font.GothamBold
+	TLLabel.TextSize = 11
+	TLLabel.ZIndex = 3
+	TLLabel.Parent = TLBox
+
+	local TLAngle = 0
+	local TLRunning = true
+	task.spawn(function()
+		local lastTick = os.clock()
+		while TLRunning do
+			local now = os.clock()
+			TLAngle = TLAngle + (now - lastTick) * 220
+			if TLAngle >= 360 then TLAngle = TLAngle - 360 end
+			TLSpinner.Rotation = TLAngle
+			
+			lastTick = now
+			task.wait(0.016)
+		end
+	end)
+
+	task.wait(0.9)
+
+	TLRunning = false
+	callback()
+
+	local FadeSteps = 12
+	for i = 1, FadeSteps do
+		local A = i / FadeSteps
+		TLOverlay.BackgroundTransparency = 0.35 + (0.65 * A)
+		SetGuiFade(TLBox, A)
+		task.wait(0.02)
+	end
+
+	ToggleLoadGui:Destroy()
+end
+
+local ToggleLocked = false
+ToggleButton.MouseButton1Click:Connect(function()
+	if ToggleLocked then return end
+	ToggleLocked = true
+
+	local enabling = not AntiHitEnabled
+
+	task.spawn(function()
+		ShowToggleLoading(enabling, function()
+			AntiHitEnabled = enabling
+
+			UpdateToggleStyle(AntiHitEnabled)
+			SetPromptPatch(AntiHitEnabled)
+
+			if AntiHitEnabled then
+				if not PromptConnection then
+					PromptConnection = PromptService.PromptTriggered:Connect(
+						function(FiredPrompt, FiredPlayer)
+							if FiredPlayer == LocalPlayer then
+								TriggerAntiHit()
+							end
+						end
+					)
+				end
+			else
+				if PromptConnection then
+					PromptConnection:Disconnect()
+					PromptConnection = nil
+				end
+			end
+		end)
+
+		ToggleLocked = false
+	end)
+end)
+
+ToggleButton.MouseEnter:Connect(function()
+	TweenService:Create(
+		ToggleButton,
+		TweenInfo.new(0.15, Enum.EasingStyle.Quart),
+		{
+			BackgroundColor3 = AntiHitEnabled
+				and Color3.fromRGB(37, 88, 48)
+				or Color3.fromRGB(30, 64, 37)
+		}
+	):Play()
+end)
+
+ToggleButton.MouseLeave:Connect(function()
+	TweenService:Create(
+		ToggleButton,
+		TweenInfo.new(0.15, Enum.EasingStyle.Quart),
+		{
+			BackgroundColor3 = AntiHitEnabled
+				and Color3.fromRGB(31, 77, 41)
+				or Color3.fromRGB(26, 48, 31)
+		}
+	):Play()
+end)
+
+MainFrame.BackgroundTransparency = 0
+MainStroke.Transparency = 1
+GlowStroke.Transparency = 1
+
+for _, Object in ipairs(MainFrame:GetDescendants()) do
+	if Object:IsA("TextLabel") or Object:IsA("TextButton") then
+		Object.TextTransparency = math.max(Object.TextTransparency, 0.18)
+	elseif Object:IsA("ImageLabel") or Object:IsA("ImageButton") then
+		Object.ImageTransparency = math.max(Object.ImageTransparency, 0.16)
+	end
+end
+
+task.defer(function()
+	TweenService:Create(MainFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quart), {BackgroundTransparency = 0}):Play()
+	TweenService:Create(MainStroke, TweenInfo.new(0.6, Enum.EasingStyle.Quart), {Transparency = 0}):Play()
+	TweenService:Create(GlowStroke, TweenInfo.new(0.75, Enum.EasingStyle.Quart), {Transparency = 1}):Play()
+
+	for _, Object in ipairs(MainFrame:GetDescendants()) do
+		if Object:IsA("TextLabel") or Object:IsA("TextButton") then
+			TweenService:Create(Object, TweenInfo.new(0.45, Enum.EasingStyle.Quart), {TextTransparency = 0}):Play()
+		elseif Object:IsA("ImageLabel") or Object:IsA("ImageButton") then
+			TweenService:Create(Object, TweenInfo.new(0.45, Enum.EasingStyle.Quart), {ImageTransparency = 0}):Play()
+		end
+	end
+
+	local IntroTween = TweenService:Create(
+		ContainerScale,
+		TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{Scale = TargetUiScale}
+	)
+
+	local PositionTween = TweenService:Create(
+		DragContainer,
+		TweenInfo.new(0.48, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{Position = UDim2.fromScale(0.5, 0.5)}
+	)
+
+	IntroTween:Play()
+	PositionTween:Play()
+	IntroTween.Completed:Connect(function()
+		IntroFinished = true
+		ContainerScale.Scale = TargetUiScale
+	end)
+end)
+
+local Dragging = false
+local DragStart = nil
+local StartPosition = nil
+
+Header.InputBegan:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		Dragging = true
+		DragStart = Input.Position
+		StartPosition = DragContainer.Position
+
+		Input.Changed:Connect(function()
+			if Input.UserInputState == Enum.UserInputState.End then
+				Dragging = false
+				DragStart = nil
+				StartPosition = nil
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(Input)
+	if not Dragging then
+		return
+	end
+
+	if Input.UserInputType == Enum.UserInputType.MouseMovement
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		local Delta = Input.Position - DragStart
+
+		DragContainer.Position = UDim2.new(
+			StartPosition.X.Scale,
+			StartPosition.X.Offset + Delta.X,
+			StartPosition.Y.Scale,
+			StartPosition.Y.Offset + Delta.Y
+		)
+	end
+end)
+
+local LIMAOHUB_FIREBASE_URL = ((type(getgenv) == "function" and getgenv().LIMAOHUB_FIREBASE_URL) or "https://hzs-huh-chat-default-rtdb.firebaseio.com")
+
+local function LimaoBroadcastHttpReq(options)
+	local fn = (syn and syn.request)
+		or (http and http.request)
+		or http_request
+		or (fluxus and fluxus.request)
+		or request
+	if fn then
+		local ok, res = pcall(fn, options)
+		if ok and res then
+			return res
+		end
+	end
+
+	if type(options) == "table" and tostring(options.Method or "GET"):upper() == "GET" then
+		local ok, body = pcall(function()
+			return game:HttpGet(options.Url)
+		end)
+		if ok and type(body) == "string" then
+			return {Body = body, StatusCode = 200}
+		end
+	end
+
+	return nil
+end
+
+local function ShowLimaoFirebaseBroadcast(data)
+	if type(data) ~= "table" or not data.message then
+		return
+	end
+
+	local old = GuiParent:FindFirstChild("LimaoBroadcastBanner")
+	if old then
+		old:Destroy()
+	end
+
+	local BroadcastUI = Instance.new("ScreenGui")
+	BroadcastUI.Name = "LimaoBroadcastBanner"
+	BroadcastUI.IgnoreGuiInset = true
+	BroadcastUI.ResetOnSpawn = false
+	BroadcastUI.DisplayOrder = 9998
+	BroadcastUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	BroadcastUI.Parent = GuiParent
+
+	local BannerFrame = Instance.new("Frame")
+	BannerFrame.Size = UDim2.new(0, 430, 0, 78)
+	BannerFrame.Position = UDim2.new(0.5, -215, 0, -90)
+	BannerFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	BannerFrame.BackgroundTransparency = 0.05
+	BannerFrame.BorderSizePixel = 0
+	BannerFrame.ZIndex = 5
+	BannerFrame.Parent = BroadcastUI
+
+	local BannerCorner = Instance.new("UICorner")
+	BannerCorner.CornerRadius = UDim.new(0, 12)
+	BannerCorner.Parent = BannerFrame
+
+	local BannerIconFrame = Instance.new("Frame")
+	BannerIconFrame.Size = UDim2.new(0, 44, 0, 44)
+	BannerIconFrame.Position = UDim2.new(0, 14, 0.5, -22)
+	BannerIconFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	BannerIconFrame.BorderSizePixel = 0
+	BannerIconFrame.ZIndex = 5
+	BannerIconFrame.Parent = BannerFrame
+
+	local BannerIconCorner = Instance.new("UICorner")
+	BannerIconCorner.CornerRadius = UDim.new(0, 9)
+	BannerIconCorner.Parent = BannerIconFrame
+
+	local BannerIcon = Instance.new("ImageLabel")
+	BannerIcon.Size = UDim2.new(1, 0, 1, 0)
+	BannerIcon.BackgroundTransparency = 1
+	BannerIcon.Image = "rbxassetid://78019535995686"
+	BannerIcon.ScaleType = Enum.ScaleType.Fit
+	BannerIcon.ZIndex = 6
+	BannerIcon.Parent = BannerIconFrame
+
+	local BannerIconCorner2 = Instance.new("UICorner")
+	BannerIconCorner2.CornerRadius = UDim.new(0, 7)
+	BannerIconCorner2.Parent = BannerIcon
+
+	local BannerIconStroke = Instance.new("UIStroke")
+	BannerIconStroke.Color = Color3.fromRGB(255, 255, 255)
+	BannerIconStroke.Thickness = 1
+	BannerIconStroke.Transparency = 0.1
+	BannerIconStroke.Parent = BannerIconFrame
+
+	local BannerBadge = Instance.new("Frame")
+	BannerBadge.Size = UDim2.new(0, 76, 0, 16)
+	BannerBadge.Position = UDim2.new(0, 70, 0, 8)
+	BannerBadge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	BannerBadge.BorderSizePixel = 0
+	BannerBadge.ZIndex = 6
+	BannerBadge.Parent = BannerFrame
+
+	local BannerBadgeCorner = Instance.new("UICorner")
+	BannerBadgeCorner.CornerRadius = UDim.new(0, 5)
+	BannerBadgeCorner.Parent = BannerBadge
+
+	local BannerBadgeLabel = Instance.new("TextLabel")
+	BannerBadgeLabel.Size = UDim2.new(1, -10, 1, 0)
+	BannerBadgeLabel.Position = UDim2.new(0, 6, 0, 0)
+	BannerBadgeLabel.BackgroundTransparency = 1
+	BannerBadgeLabel.Text = "ANÚNCIO"
+	BannerBadgeLabel.TextColor3 = Color3.fromRGB(8, 8, 8)
+	BannerBadgeLabel.TextSize = 9
+	BannerBadgeLabel.Font = Enum.Font.GothamBold
+	BannerBadgeLabel.TextXAlignment = Enum.TextXAlignment.Left
+	BannerBadgeLabel.ZIndex = 7
+	BannerBadgeLabel.Parent = BannerBadge
+
+	local BannerTitle = Instance.new("TextLabel")
+	BannerTitle.Size = UDim2.new(1, -150, 0, 16)
+	BannerTitle.Position = UDim2.new(0, 155, 0, 8)
+	BannerTitle.BackgroundTransparency = 1
+	BannerTitle.Text = tostring(data.sender or "Admin") .. " • Limão Hub"
+	BannerTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	BannerTitle.TextSize = 10
+	BannerTitle.Font = Enum.Font.GothamMedium
+	BannerTitle.TextXAlignment = Enum.TextXAlignment.Center
+	BannerTitle.ZIndex = 5
+	BannerTitle.Parent = BannerFrame
+
+	local BannerMsg = Instance.new("TextLabel")
+	BannerMsg.Size = UDim2.new(1, -82, 0, 38)
+	BannerMsg.Position = UDim2.new(0, 70, 0, 28)
+	BannerMsg.BackgroundTransparency = 1
+	BannerMsg.Text = tostring(data.message or "")
+	BannerMsg.TextColor3 = Color3.fromRGB(248, 248, 248)
+	BannerMsg.TextSize = 13
+	BannerMsg.Font = Enum.Font.GothamMedium
+	BannerMsg.TextWrapped = true
+	BannerMsg.TextXAlignment = Enum.TextXAlignment.Left
+	BannerMsg.ZIndex = 5
+	BannerMsg.Parent = BannerFrame
+
+	local BannerDismiss = Instance.new("TextButton")
+	BannerDismiss.Size = UDim2.new(0, 22, 0, 22)
+	BannerDismiss.Position = UDim2.new(1, -28, 0, 6)
+	BannerDismiss.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	BannerDismiss.BackgroundTransparency = 0.3
+	BannerDismiss.BorderSizePixel = 0
+	BannerDismiss.Text = "×"
+	BannerDismiss.TextColor3 = Color3.fromRGB(220, 220, 220)
+	BannerDismiss.TextSize = 16
+	BannerDismiss.Font = Enum.Font.GothamBold
+	BannerDismiss.AutoButtonColor = false
+	BannerDismiss.ZIndex = 8
+	BannerDismiss.Parent = BannerFrame
+
+	local BannerDismissCorner = Instance.new("UICorner")
+	BannerDismissCorner.CornerRadius = UDim.new(0, 6)
+	BannerDismissCorner.Parent = BannerDismiss
+
+	BannerDismiss.MouseEnter:Connect(function()
+		BannerDismiss.BackgroundTransparency = 0
+		BannerDismiss.TextColor3 = Color3.fromRGB(255, 255, 255)
+	end)
+
+	BannerDismiss.MouseLeave:Connect(function()
+		BannerDismiss.BackgroundTransparency = 0.3
+		BannerDismiss.TextColor3 = Color3.fromRGB(220, 220, 220)
+	end)
+
+	local tweenIn = TweenService:Create(
+		BannerFrame,
+		TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{Position = UDim2.new(0.5, -215, 0, 20)}
+	)
+	tweenIn:Play()
+
+	local dismissed = false
+	local function dismissBanner()
+		if dismissed then
+			return
+		end
+		dismissed = true
+		if BannerFrame and BannerFrame.Parent then
+			local tweenOut = TweenService:Create(
+				BannerFrame,
+				TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{Position = UDim2.new(0.5, -215, 0, -90)}
+			)
+			tweenOut:Play()
+			tweenOut.Completed:Wait()
+			if BroadcastUI and BroadcastUI.Parent then
+				BroadcastUI:Destroy()
+			end
+		end
+	end
+
+	BannerDismiss.MouseButton1Click:Connect(dismissBanner)
+	task.delay(10, dismissBanner)
+end
+
+local function StartLimaoFirebaseBroadcastListener()
+	local G = (type(getgenv) == "function" and getgenv()) or _G
+	local state = G._limaohub_antihit_broadcastState
+	if type(state) ~= "table" then
+		state = {}
+		G._limaohub_antihit_broadcastState = state
+	end
+
+	state.listenerToken = (state.listenerToken or 0) + 1
+	local myToken = state.listenerToken
+	local lastMessageKey = tostring(state.lastMessageKey or "")
+	local initialized = false
+
+	task.spawn(function()
+		while state.listenerToken == myToken do
+			task.wait(1)
+
+			local res = LimaoBroadcastHttpReq({
+				Url = LIMAOHUB_FIREBASE_URL .. "/hzshub_admin/broadcast.json",
+				Method = "GET",
+				Headers = { ["Content-Type"] = "application/json" }
+			})
+
+			if state.listenerToken ~= myToken then
+				return
+			end
+
+			if res and res.Body and res.Body ~= "null" then
+				local ok, data = pcall(HttpService.JSONDecode, HttpService, res.Body)
+				if ok and type(data) == "table" and data.active and (data.id or data.timestamp) then
+					local messageKey = tostring(data.id or data.timestamp)
+
+					if not initialized then
+						initialized = true
+						if lastMessageKey ~= "" then
+							state.lastMessageKey = lastMessageKey
+						end
+						if messageKey ~= lastMessageKey then
+							lastMessageKey = messageKey
+							state.lastMessageKey = messageKey
+						end
+					elseif messageKey ~= "" and messageKey ~= lastMessageKey then
+						lastMessageKey = messageKey
+						state.lastMessageKey = messageKey
+						ShowLimaoFirebaseBroadcast(data)
+					end
+				end
+			end
+		end
+	end)
+end
+
+local function ShowLimaoServerBroadcast(message)
+	local old = GuiParent:FindFirstChild("LimaoServerBroadcast")
+	if old then
+		old:Destroy()
+	end
+
+	local ui = Instance.new("ScreenGui")
+	ui.Name = "LimaoServerBroadcast"
+	ui.IgnoreGuiInset = true
+	ui.ResetOnSpawn = false
+	ui.DisplayOrder = 9999
+	ui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	ui.Parent = GuiParent
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 430, 0, 70)
+	frame.Position = UDim2.new(0.5, -215, 0, 24)
+	frame.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	frame.BackgroundTransparency = 0.08
+	frame.BorderSizePixel = 0
+	frame.Parent = ui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = frame
+
+	local playerIcon = Instance.new("ImageLabel")
+	playerIcon.Size = UDim2.new(0, 44, 0, 44)
+	playerIcon.Position = UDim2.new(0, 12, 0.5, -22)
+	playerIcon.BackgroundTransparency = 1
+	playerIcon.Image = "rbxassetid://78019535995686"
+	playerIcon.ScaleType = Enum.ScaleType.Fit
+	playerIcon.Parent = frame
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -70, 0, 18)
+	title.Position = UDim2.new(0, 66, 0, 8)
+	title.BackgroundTransparency = 1
+	title.Text = "Limão Hub • BROADCAST"
+	title.TextColor3 = Color3.fromRGB(57, 255, 20)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 11
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = frame
+
+	local body = Instance.new("TextLabel")
+	body.Size = UDim2.new(1, -78, 0, 32)
+	body.Position = UDim2.new(0, 66, 0, 28)
+	body.BackgroundTransparency = 1
+	body.Text = tostring(message or "")
+	body.TextColor3 = Color3.fromRGB(255, 255, 255)
+	body.Font = Enum.Font.Gotham
+	body.TextSize = 13
+	body.TextWrapped = true
+	body.TextXAlignment = Enum.TextXAlignment.Left
+	body.Parent = frame
+
+	task.delay(8, function()
+		if ui and ui.Parent then
+			ui:Destroy()
+		end
+	end)
+end
+
+local function StartLimaoServerBroadcastListener()
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local event = ReplicatedStorage:WaitForChild("LimaoHubBroadcast", 15)
+	if not event or not event:IsA("RemoteEvent") then
+		return
+	end
+
+	event.OnClientEvent:Connect(function(message)
+		ShowLimaoServerBroadcast(message)
+	end)
+end
+
+StartLimaoFirebaseBroadcastListener()
+StartLimaoServerBroadcastListener()
+
+UpdateToggleStyle(false)
